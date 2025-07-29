@@ -1,0 +1,34 @@
+A:active  { text-decoration: none; color: #0000cc }
+A:hover   { text-decoration: none; color: #0000cc }
+A:link    { text-decoration: none; color: #1e90ff }
+A:visited { text-decoration: none; color: #1e90ff }
+input { font-family:Arial, Helvetica, sans-serif; font-size:13px }
+select { font-family:Arial, Helvetica, sans-serif; font-size:13px }
+.title_xl  { font-family:"Comic Sans MS, Arial", Helvetica, sans-serif; font-size:24px; font-weight:bold }
+.title_l  { font-family:Arial, Helvetica, sans-serif; font-size:17px; font-weight:bold }
+.title_m  { font-family:Arial, Helvetica, sans-serif; font-size:15px; font-weight:bold }
+.title_s  { font-family:Arial, Helvetica, sans-serif; font-size:13px; font-weight:bold }
+.title_t  { font-family:Arial, Helvetica, sans-serif; font-size:12px; font-weight:bold }
+.symbol   { font-family:Arial, Helvetica, sans-serif; font-size:13px }
+.text_m   { font-family:Helvetica, Arial, sans-serif; font-size:14px }
+.text_s   { font-family:Helvetica, Arial, sans-serif; font-size:13px }
+.text_t   { font-family:Helvetica, Arial, sans-serif; font-size:12px }
+.ui-slider .ui-slider-handle {background: lightblue;}
+.ui-slider {background: lightgray;}
+.banner { 
+ 		width:960px; margin:0 auto; /* size of banner, also centers the color background*/
+   		text-align:center; /*centers-text for all child elements!*/
+   	 	padding:0;
+		font-weight:normal;
+		font-size:400%;
+		background:  orange;
+		text-shadow: 0 1px 0 #fff;
+		padding: .5em 0 ;
+
+}
+.banner small {
+	 display:block; /* see you dont really need the br*/
+	 font-family:sans-serif; font-size:40%;
+	 margin: .125ex 0 0  0 ; /* determines space from site name, 1st # is the value for the space left at the top... 1ex=same space as the height of the  letter'x' ( might as well use good typography!)  */
+}
+.banner h1 +div { font-weight: bold; font-family:sans; font-s
