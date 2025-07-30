@@ -61,3 +61,15 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+# Treat CUDA files as CUDA
+*.cu   linguist-language=CUDA
+*.cuh  linguist-language=CUDA
+
+# Treat C/C++ headers & sources as C++
+*.cpp  linguist-language=C++
+*.h    linguist-language=C++
+
+# Force plain text for .txt (so HTML tags don’t trip Linguist)
+*.txt  linguist-language=Text
+
