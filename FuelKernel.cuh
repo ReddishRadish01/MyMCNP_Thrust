@@ -32,16 +32,19 @@ struct BareSphere {
 	double m_radius;
 	FissionableElementType m_FissionableElementType;
 	double m_enrichment;	// percent
-	double m_fissionableComposition;
-	ModeratorType m_ModeratorType;
-	double m_moderatorComposition;
+	double m_fissionableComposition;	// mass percentage	
+	ModeratorType m_ModeratorType;	
+	double m_moderatorComposition;		// mass percentage
+
 
 
 	BareSphere(double radius, FissionableElementType fissionableElementType, double enrichment, double fissionableComposition, 
-				ModeratorType moderatorType, double moderatorComposition)
+				ModeratorType moderatorType)
 		: m_radius(radius), m_FissionableElementType(fissionableElementType), m_enrichment(enrichment), m_fissionableComposition(fissionableComposition),
-		  m_ModeratorType(moderatorType), m_moderatorComposition(moderatorComposition)
-	{}
+		  m_ModeratorType(moderatorType)
+	{
+		m_moderatorComposition = 100.0 - fissionableComposition;
+	}
 
 	__host__ __device__ double getTotalMacroXS(Neutron incidentNeutron, RawCrossSection* U235XS, RawCrossSection* U238XS, RawCrossSection* O16XS, RawCrossSection* ModXS);
 

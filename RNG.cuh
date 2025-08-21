@@ -40,6 +40,7 @@ struct GnuAMCM {
 
 	__host__ __device__ unsigned long long gen();
 	__host__ __device__ double uniform(double lowerLimit, double upperLimit);
+	__host__ __device__ double uniform_open(double lowerLimit, double upperLimit); 
 	__host__ __device__ int int_dist(int lower, int upper);
 
 	__host__ __device__ double GnuAMCM::MaxwellDistSample(double a);

@@ -233,6 +233,17 @@ __host__ void NeutronDistribution::uniformSpherical(double radius, double maxEne
 	}
 }
 
+__host__ void NeutronDistribution::singleEnergySpherical(double radius, double energy) {
+	GnuAMCM RNG(this->m_seedNumber);
+	for (int i = 0; i < static_cast<int>(this->m_initialNeutronNumber); i++) {
+		vec3 posVec(0.0, 0.0, 0.0);
+		posVec = posVec.randomUnit(RNG.gen()) * RNG.uniform(0.0, radius);
+		vec3 dirVec(0.0, 0.0, 0.0);
+		dirVec = dirVec.randomUnit(RNG.gen());
+		this->m_initialNeutron[i] = Neutron(posVec, dirVec, energy);
+	}
+}
+
 // 3 methods for rearranging the neutron arrays:
 // 1. Purely on the original NeutronDistribution struct: but this cannot be parallelized, meaning this should be done on host. This requires cudaMemcpy to DtoH.
 // 2. cudaMemcpy DtoH, change the NeutronDistribution struct to Another Host-dedicated struct composed with std::vector (or other modern containers)
@@ -277,7 +288,32 @@ __host__ void NeutronThrustHost::uniformSpherical(double radius, double maxEnerg
 		double energy = RNG.uniform(0.0, 1.0) * maxEnergy;
 		elemNeutron = Neutron(posVec, dirVec, energy);
 	}
-	
+}
+
+__host__ void NeutronThrustHost::singleEnergySpherical(double radius, double energy) {
+	GnuAMCM RNG(this->m_seedNumber);
+	for (auto& elemNeutron : this->m_neutrons) {
+		vec3 posVec(0.0, 0.0, 0.0);
+		posVec = vec3::randomUnit(RNG.gen()) * RNG.uniform(0.0, radius);
+		vec3 dirVec(0.0, 0.0, 0.0);
+		dirVec = vec3::randomUnit(RNG.gen());
+		elemNeutron = Neutron(posVec, dirVec, energy);
+	}
+}
+
+
+
+__host__ NeutronThrustDevice NeutronThrustHost::HtoD(thrust::device_vector<Neutron>& d_Neutrons, thrust::device_vector<Neutron>& d_addedNeutrons) {
+	return NeutronThrustDevice{ thrust::raw_pointer_cast(d_Neutrons.data()), thrust::raw_pointer_cast(d_addedNeutrons.data()), 
+		(unsigned int)(d_Neutrons.size()), (unsigned int)(d_addedNeutrons.size()), m_seedNumber, m_spectrumType };
+}
+
+__host__ void NeutronThrustHost::DtoH(thrust::device_vector<Neutron>& d_Neutrons, thrust::device_vector<Neutron>& d_addedNeutrons) {
+	cudaDeviceSynchronize();
+	// this resizing part takes up so much time.
+	this->m_neutrons.resize(d_Neutrons.size());
+	thrust::copy(d_Neutrons.begin(), d_Neutrons.end(), this->m_neutrons.begin());
+	thrust::copy(d_addedNeutrons.begin(), d_addedNeutrons.end(), this->m_addedNeutrons.begin());
 }
 
 __host__ void NeutronThrustHost::MergeNeutrons() {

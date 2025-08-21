@@ -37,8 +37,8 @@
 
 
 // currently have a base of 500000 neutrons - these numbers should be a divisor of it.(It doesnt really matter tho it will get truncated down anyways)
-int ratioDivider = 200;
-__device__ int d_ratioDivider = 200;
+int ratioDivider = 2;
+__device__ int d_ratioDivider = 2;
 
 
 
@@ -82,26 +82,32 @@ __global__ void ThrustTest(BareSphere* CP1, NeutronThrustDevice* d_Neutrons, Raw
 	RawCrossSection* O16XS, RawCrossSection* C12XS, unsigned int numNeutrons, unsigned long long* seedNo, double* distances, int* counter) {
 	int idx = threadIdx.x + blockIdx.x * blockDim.x;
 	if (idx < numNeutrons) {
-		if (d_Neutrons->m_neutrons[idx].isNullified() == false) {
+		if (!d_Neutrons->m_neutrons[idx].isNullified()) {
 			double totalCrossSection = CP1->getTotalMacroXS(d_Neutrons->m_neutrons[idx], U235XS, U238XS, O16XS, C12XS);
 			GnuAMCM RNG(seedNo[idx]);
 			seedNo[idx] = RNG.gen();
-			distances[idx] = -log(RNG.uniform(0.0, 1.0)) / (totalCrossSection * 100);
+			double u = RNG.uniform_open(0.0, 1.0);
+			//distances[idx] = -log(RNG.uniform(0.0, 1.0)) / (totalCrossSection * 100);
+			//distances[idx] = -log(0.5) / (totalCrossSection * 100);
+			distances[idx] = -log(u) / (totalCrossSection * 100);
 			d_Neutrons->m_neutrons[idx].UpdateWithLength(distances[idx]);
 		}
 		else {
 			seedNo[idx] = (seedNo[idx] * 25214903917ULL + 11ULL) % (1ULL << 48);
 			distances[idx] = 0;
 		}
-
+		/*
 		if (d_Neutrons->m_neutrons[idx].OutofBounds(CP1->m_radius) == true) {
 			d_Neutrons->m_neutrons[idx].Nullify();
 			atomicAdd(counter, 1);
 		}
+		
 
 		if (idx < numNeutrons / d_ratioDivider) {
 			d_Neutrons->m_addedNeutrons[idx] = d_Neutrons->m_neutrons[idx];
+
 		}
+		*/
 	}
 }
 
@@ -118,18 +124,53 @@ __global__ void ThrustTest(BareSphere* CP1, NeutronThrustDevice* d_Neutrons, Raw
  */
  /*
  * maths: the PDF for the distance to its next collision \textit{l} is
- *   p(l)dl = \Sigma_{t} e^{-\Sigma_{t} l} dl
+ *	 p(l)dl = \Sigma_{t} e^{-\Sigma_{t} l} dl
  * we convert the PDF to Cumulative Distribution Function(CDF)
  *   \int_{0}^{l} dl' p(l') = \int_{0}^{l} dl' \Sigma_t e^{-Sigma_t l'} = 1 - e^{-\Sigma_t l}
  * let /xi be the result of the CDF, which is between [0, 1):
  *   1 - e^{-\Sigma_t l} = \xi \srightarrow l = -\frac{\ln(1-\xi)}{\Sigma_t}
  * since \xi is equally distributed in [0,1), 1-\xi will also be [0,1). Therefore:
  *   l = -\frac{\ln(\xi)}{\Sigma_t}
+ * 
+ * Note that \xi is in range of (0, 1]. In order to get the average of this, you do:
+ *	 \int_{0}^{1} l\ d\xi = \int_{0}^{1} -\frac{\ln(\xi)}{\Sigma_t}\ d\xi = \frac{ \left[ \xi\ln\xi - \xi \right]_{0}^{1} }{\Sigma_t} \\
+ *	 = \frac{1}{\Sigma_t} = \overline{l}.
+ * 
+ * This means that the average distance of travel is reciprocal of the macroscopic XS, just like we learned.
+ *	
  */
 
 
 int main() {
 	std::cout << "Hello world!\n\n";
+	std::cout << "Newly Compiled!!\n";
+
+	int numNeutrons = 500000;
+	unsigned long long seedNo = 2001;
+
+    /*
+     *  ___      _   _   _                             ___ _  _  ___ 
+     * / __| ___| |_| |_(_)_ _  __ _     _  _ _ __    | _ \ \| |/ __|
+     * \__ \/ -_)  _|  _| | ' \/ _` |   | || | '_ \   |   / .` | (_ |
+     * |___/\___|\__|\__|_|_||_\__, |    \_,_| .__/   |_|_\_|\_|\___|
+     *                         |___/         |_|                     
+     */
+	GnuAMCM RNG(seedNo);
+	// ** Will using "Linear" Additive Multiplicative Congrugental Method (AMCM) works in this parallelized task?
+	GnuAMCM h_RNG(seedNo);
+	GnuAMCM* d_RNG = nullptr;
+	cudaMalloc(&d_RNG, sizeof(GnuAMCM));
+
+	cudaMemcpy(d_RNG, &h_RNG, sizeof(GnuAMCM), cudaMemcpyHostToDevice);
+	unsigned long long* h_Seed = new unsigned long long[numNeutrons * 2];
+	unsigned long long* d_Seed = nullptr;
+	cudaMalloc(&d_Seed, 2 * numNeutrons * sizeof(unsigned long long));
+	for (int i = 0; i < numNeutrons * 2; i++) {
+		h_Seed[i] = RNG.gen();
+	}
+	cudaMemcpy(d_Seed, h_Seed, numNeutrons * 2 * sizeof(unsigned long long), cudaMemcpyHostToDevice);
+
+
 
 	/*
 	 *  ___ ___ _____ _____ ___ _  _  ___     _   _ ___     _  _ ___ _   _ _____ ___  ___  _  _ ___
@@ -138,8 +179,7 @@ int main() {
 	 * |___/___| |_|   |_| |___|_|\_|\___|    \___/|_|     |_|\_|___|\___/  |_| |_|_\\___/|_|\_|___/
 	 *
 	 */
-	int numNeutrons = 500000;
-	unsigned long long seedNo = 2001;
+
 
 	//std::cout << std::fixed << std::setprecision(10);
 	std::cout << std::fixed << std::scientific;
@@ -173,17 +213,27 @@ int main() {
 
 
 
+     /*
+      *  _____ _                _       _  _          _                
+      * |_   _| |_  _ _ _  _ __| |_    | \| |___ _  _| |_ _ _ ___ _ _  
+      *   | | | ' \| '_| || (_-<  _|   | .` / -_) || |  _| '_/ _ \ ' \ 
+      *   |_| |_||_|_|  \_,_/__/\__|   |_|\_\___|\_,_|\__|_| \___/_||_|
+      *                                                                
+      */
 
-	// THis is Thrust TEST:
 	NeutronThrustHost h_NeutronThrust(numNeutrons, seedNo, SpectrumType::default);
-	h_NeutronThrust.uniformSpherical(3.048, 2e+6);
-
+	//h_NeutronThrust.uniformSpherical(3.048, 2e+6);
+	h_NeutronThrust.singleEnergySpherical(3.048, 0.0253);
 	thrust::device_vector<Neutron> d_NeutronVector = h_NeutronThrust.m_neutrons;
 	thrust::device_vector<Neutron> d_addedNeutronVector = h_NeutronThrust.m_addedNeutrons;
 	NeutronThrustDevice DeviceCopy = h_NeutronThrust.HtoD(d_NeutronVector, d_addedNeutronVector);
 	NeutronThrustDevice* d_NeutronThrust = nullptr;
 	cudaMalloc(&d_NeutronThrust, sizeof(NeutronThrustDevice));
 	cudaMemcpy(d_NeutronThrust, &DeviceCopy, sizeof(NeutronThrustDevice), cudaMemcpyHostToDevice);
+
+
+
+	thrust::device_vector<double> d_thrustReturn(numNeutrons);
 
 
 
@@ -197,35 +247,18 @@ int main() {
  */
 
  // Composition of Chicago Pile - 1 
- // 6 short ton of U metal , 50 short ton of UO2, 400 short ton of Graphite.
+ // 6 short ton of U metal , 50 short ton of UO2, 400 short ton of Graphite. -> giving about 13% UO2 mass percentage
  // radius = ~ 10 ft. (3.048 m)
+ // ALL the uranium here is unenriched: 0.72 U235, 99.28 U238.
 
-	BareSphere h_ChicagoPile1(3.048, FissionableElementType::U235, 19.5, 50.0, ModeratorType::Graphite, (100.0 - 50.0));
+	BareSphere h_ChicagoPile1(3.048, FissionableElementType::U235, 0.72, 13, ModeratorType::Graphite);
 	BareSphere* d_ChicagoPile1;
 
 	cudaMalloc(&d_ChicagoPile1, sizeof(BareSphere));
 	cudaMemcpy(d_ChicagoPile1, &h_ChicagoPile1, sizeof(BareSphere), cudaMemcpyHostToDevice);
 
 
-
-
 	//std::cout << h_O16RawXS.getCrossSectionByEnergy(20.0) << "\n\n";
-
-	GnuAMCM RNG(seedNo);
-	// ** Will using "Linear" Additive Multiplicative Congrugental Method (AMCM) works in this parallelized task?
-	GnuAMCM h_RNG(seedNo);
-	GnuAMCM* d_RNG = nullptr;
-	cudaMalloc(&d_RNG, sizeof(GnuAMCM));
-
-	cudaMemcpy(d_RNG, &h_RNG, sizeof(GnuAMCM), cudaMemcpyHostToDevice);
-	unsigned long long* h_Seed = new unsigned long long[numNeutrons];
-	unsigned long long* d_Seed = nullptr;
-	cudaMalloc(&d_Seed, numNeutrons * sizeof(unsigned long long));
-	for (int i = 0; i < numNeutrons; i++) {
-		h_Seed[i] = RNG.gen();
-	}
-	cudaMemcpy(d_Seed, h_Seed, numNeutrons * sizeof(unsigned long long), cudaMemcpyHostToDevice);
-
 
 
 	double* h_randomDist = new double[numNeutrons];
@@ -245,7 +278,8 @@ int main() {
 	double* d_value = nullptr;
 	cudaMalloc(&d_value, numNeutrons * sizeof(double));
 
-	double* h_return = new double[numNeutrons];
+
+	double* h_return = new double[numNeutrons]; 
 	double* d_return = nullptr;
 	cudaMalloc(&d_return, numNeutrons * sizeof(double));
 
@@ -457,6 +491,7 @@ int main() {
 	cudaMalloc(&d_H1_n3n_XS,		h_H1RawXS.n3n_size * sizeof(double));      //
 	//
 // ----------------------------------------------------------------------- //
+
 
 
 // --------- Assigning the values to the device buffer arrays with host side arrays ( d -> n ) ---------------------------- //
@@ -737,19 +772,21 @@ int main() {
 	std::cout << "\n\nInitial Thrust Neutron Position:\n";
 	for (int i = 0; i < 10; i++) {
 		std::cout << h_NeutronThrust.m_neutrons[i].m_pos.x << ", " << h_NeutronThrust.m_neutrons[i].m_pos.y << ", "
-			<< h_NeutronThrust.m_neutrons[i].m_pos.z << "\n";
+			<< h_NeutronThrust.m_neutrons[i].m_pos.z << " , Energy: " << h_NeutronThrust.m_neutrons[i].m_energy << "\n";
 	}
 	
 
 	double loopStartT = clock();
-	int loopSize = 10;
+	int loopSize = 1;
 	for (int i = 0; i < loopSize; i++) {
 		ThrustTest<<<blockPerDim, threadPerBlock>>>(d_ChicagoPile1, d_NeutronThrust, d_U235RawXS, d_U238RawXS, d_O16RawXS, d_C12RawXS,
-			numNeutrons, d_Seed, d_return, d_int);
+			numNeutrons, d_Seed, thrust::raw_pointer_cast(d_thrustReturn.data()), d_int);
 		cudaDeviceSynchronize();
 		//cudaMemcpy(&h_int, d_int, sizeof(int), cudaMemcpyDeviceToHost);
 		//std::cout << "\n" << h_int << "\n";
 	}
+
+	
 	double loopEndT = clock();
 
 	std::cout << "\n\ntime for thrust library, each loop takes :" << std::setprecision(8) << (loopEndT - loopStartT) / TimeDivider / loopSize << "milliseconds\n";
@@ -757,29 +794,110 @@ int main() {
 	// for getting the next reaction distance, each loop takes 5.8 milliseconds. 
 	// running program for 10 hours, it will have exectured total of 6,206,896 loops. This is for 500,000 Neutrons.
 	// this have almost no performance difference to the original one, but the kick is, the neutron array(with thrust, its a vector) is scalable - a huge developemental benefit.
+	std::cout << "before merge:\n" << d_NeutronVector.size() << " " << d_addedNeutronVector.size() << "\n";
 
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	// This takes too much time: using dynamic sized neutrons are not adequate.
+	// We maybe have to 
 	h_NeutronThrust.DtoH(d_NeutronVector, d_addedNeutronVector); // send it back to Host
+	// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
 
 	std::cout << "\n\nAfter reaction Thrust Neutron Position:\n";
 	for (int i = 0; i < 10; i++) {
 		std::cout << h_NeutronThrust.m_neutrons[i].m_pos.x << ", " << h_NeutronThrust.m_neutrons[i].m_pos.y << ", "
 			<< h_NeutronThrust.m_neutrons[i].m_pos.z << "\n";
 	}
-	std::cout << "\n\n";
+	std::cout << "\n After reaction Thrust neutron direction vector:\n";
+	for (int i = 0; i < 10; i++) {
+		std::cout << h_NeutronThrust.m_neutrons[i].m_dirVec.x << ", " << h_NeutronThrust.m_neutrons[i].m_dirVec.y << ", "
+			<< h_NeutronThrust.m_neutrons[i].m_dirVec.z << "\n";
+	}
+
+	thrust::host_vector<double> h_thrustReturn = d_thrustReturn;
+	
+	std::cout << "\nDistances traveled: \n";
+	for (int i = 0; i < 10; i++) {
+		std::cout << h_thrustReturn[i] << "\n"; 
+	}
+
+	double sum = 0;
+	for (int i = 0; i < numNeutrons; i++) {
+		sum += h_thrustReturn[i];
+	}
+	std::cout << d_thrustReturn.size() << "\n";
+	std::cout << "\nAverage distance traveled: " << sum / numNeutrons<< "\n";
+
+	/*
+	NeutronThrustManager Manager(d_NeutronVector, d_addedNeutronVector, seedNo, SpectrumType::default);
+	std::cout << Manager.d_neutrons.size() << "  " << Manager.d_addedNeutrons.size() << "\n";
+	Manager.MergeNeutron();
+	*/ 
+
+	std::cout << "before merge:\n" << d_NeutronVector.size() << " " << d_addedNeutronVector.size() << "\n";
+	double mergeStartT = clock();
+	NeutronThrustManager::MergeNeutron(d_NeutronVector, d_addedNeutronVector);
+	double mergeEndT = clock();
+	std::cout << "merge time:" << (mergeEndT - mergeStartT) / TimeDivider << "milliseconds\n";
+	std::cout << "after merge:\n" << d_NeutronVector.size() << " " << d_addedNeutronVector.size() << "\n\n";
+
+	//unsigned int modifiedNumNeutrons = Manager.d_neutrons.size();
+	unsigned int modifiedNumNeutrons = d_NeutronVector.size();
+	double resizeStartT = clock();
+	d_thrustReturn.resize(modifiedNumNeutrons);
+	double resizeEndT = clock();
+	std::cout << "Time for Resize: " << (resizeEndT - resizeStartT) / TimeDivider << " milliseconds\n";
+	/*
+	ThrustTest<<<blockPerDim, threadPerBlock >>> (d_ChicagoPile1, d_NeutronThrust, d_U235RawXS, d_U238RawXS, d_O16RawXS, d_C12RawXS,
+		modifiedNumNeutrons, d_Seed, thrust::raw_pointer_cast(d_thrustReturn.data()), d_int, false);
+	cudaDeviceSynchronize();
+	*/
+
+
+
+	
+	resizeStartT = clock();
+	h_NeutronThrust.DtoH(d_NeutronVector, d_addedNeutronVector); // send it back to Host
+	resizeEndT = clock();
+	std::cout << "\nTime for Resize: " << (resizeEndT - resizeStartT) / TimeDivider << " milliseconds\n";
+
+
+	std::cout << "\n\nAfter some nullification Thrust Neutron Position:\n";
+	for (int i = 0; i < 10; i++) {
+		std::cout << h_NeutronThrust.m_neutrons[i].m_pos.x << ", " << h_NeutronThrust.m_neutrons[i].m_pos.y << ", "
+			<< h_NeutronThrust.m_neutrons[i].m_pos.z << "\n";
+	}
+
+	std::cout << "\n After reaction Thrust neutron direction vector:\n";
+	for (int i = 0; i < 10; i++) {
+		std::cout << h_NeutronThrust.m_neutrons[i].m_dirVec.x << ", " << h_NeutronThrust.m_neutrons[i].m_dirVec.y << ", "
+			<< h_NeutronThrust.m_neutrons[i].m_dirVec.z << "\n";
+	}
+
+	/*
 	for (int i = 0; i < 10; i++) {
 		std::cout << h_NeutronThrust.m_addedNeutrons[i].m_pos.x << ", " << h_NeutronThrust.m_addedNeutrons[i].m_pos.y << ", "
 			<< h_NeutronThrust.m_addedNeutrons[i].m_pos.z << "\n";
 	}
+	*/
+	h_thrustReturn = d_thrustReturn;
 
-	NeutronThrustManager Manager(d_NeutronVector, d_addedNeutronVector, seedNo, SpectrumType::default);
-	std::cout << Manager.d_neutrons.size() << "  " << Manager.d_addedNeutrons.size() << "\n";
+	std::cout << "\nDistances traveled: \n";
+	for (int i = 0; i < 10; i++) {
+		std::cout << h_thrustReturn[i] << "\n";
+	}
 
-	Manager.MergeNeutron();
 
-	std::cout << Manager.d_neutrons.size();
+	Neutron averageNeutron({ 0,0,0 }, { 0,0,0 }, 0.0253);
+	double totalXS = h_ChicagoPile1.getTotalMacroXS(averageNeutron, &h_U235RawXS, &h_U238RawXS, &h_O16RawXS, &h_C12RawXS);
+	double averageDistance = 1 / (totalXS * 100);
 
-	
-
+	std::cout << "\nFor 0.0253eV thermal neutron, Macro XS is: " << totalXS << " cm^{-1}, and distance is " << averageDistance << " meters.\n";
+	std::cout << h_U235RawXS.getTotalMicroXSByEnergy(0.0253) << "\n";
+	std::cout << h_U238RawXS.getTotalMicroXSByEnergy(0.0253) << "\n";
+	std::cout << h_C12RawXS.getTotalMicroXSByEnergy(0.0253) << "\n";
+	std::cout << h_O16RawXS.getTotalMicroXSByEnergy(0.0253) << "\n";
 
 /*
  *  ___  ___   _   _    _    ___   ___   _ _____ ___ ___  _  _
@@ -891,4 +1009,5 @@ int main() {
 	cudaFree(d_ChicagoPile1);
 
 	cudaFree(d_NeutronThrust);
+
 }

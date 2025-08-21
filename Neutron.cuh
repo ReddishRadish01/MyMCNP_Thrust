@@ -58,7 +58,7 @@ struct Neutron {
 	double m_energy;	// eV !!!
 
 	__host__ __device__ Neutron()
-		: m_pos(), m_dirVec(), m_energy(0.0) {}
+		: m_pos({ 0.0, 0.0, 0.0 }), m_dirVec({ 0.0, 0.0, 0.0 }), m_energy(0.0) {}
 
 	__host__ __device__ Neutron(vec3 pos, vec3 dirVec, double energy)
 		: m_pos(pos), m_dirVec(dirVec), m_energy(energy)
@@ -81,7 +81,6 @@ struct Neutron {
 	__device__ void InelasticScattering(double* d_depositedEnergy);
 
 	__device__ void RadiativeCapture(NeutronDistribution* Neutrons, FissionableElementType captureElement, double* d_depositedEnergy);
-	__device__ void RadiativeCapture(NeutronThrustDevice* Neutrons, FissionableElementType captureElement, double* d_depositedEnergy);
 
 	__device__ void UpdateWithLength(double length);
 
@@ -111,6 +110,8 @@ struct NeutronDistribution {
 
 	__host__ void uniformSpherical(double radius, double maxEnergy = 2e+6);
 
+	__host__ void singleEnergySpherical(double radius, double energy = 0.0253);
+
 	__host__ void finiteCylinder(double radius, double height, double maxEnergy = 2e+6);
 
 	__host__ void thermalPWR(double radius, double height);
@@ -129,13 +130,15 @@ struct NeutronDistribution {
 struct NeutronThrustDevice {
 	Neutron* m_neutrons;
 	Neutron* m_addedNeutrons;
+	unsigned int m_neutronNumber;
 	unsigned int m_addedNeutronNumber;
 	unsigned long long m_seedNumber;
 	SpectrumType m_spectrumType;
 	
 
-	__host__ __device__ NeutronThrustDevice(Neutron* neutrons, Neutron* addedNeutrons, unsigned long long seedNumber, SpectrumType spectrumType)
-		: m_neutrons(neutrons), m_addedNeutrons(addedNeutrons), m_seedNumber(seedNumber), m_spectrumType(spectrumType), m_addedNeutronNumber(0)
+	__host__ __device__ NeutronThrustDevice(Neutron* neutrons, Neutron* addedNeutrons, unsigned int neutronNumber, unsigned int addedNeutronNumber, unsigned long long seedNumber, SpectrumType spectrumType)
+		: m_neutrons(neutrons), m_addedNeutrons(addedNeutrons), m_neutronNumber(neutronNumber), m_addedNeutronNumber(addedNeutronNumber),
+		m_seedNumber(seedNumber), m_spectrumType(spectrumType)
 	{}
 
 	
@@ -159,17 +162,13 @@ struct NeutronThrustHost {
 
 	// Use this after making device vectors. e.g. @ main:
 	// thrust::device_vector<Neutron> d_Neutrons = <NeutronThrustHostName>.m_neutrons;
-	NeutronThrustDevice HtoD(thrust::device_vector<Neutron>& d_Neutrons, thrust::device_vector<Neutron>& d_addedNeutrons)
-	{
-		return NeutronThrustDevice{ thrust::raw_pointer_cast(d_Neutrons.data()), thrust::raw_pointer_cast(d_addedNeutrons.data()), m_seedNumber, m_spectrumType };
-	}
+	__host__ NeutronThrustDevice HtoD(thrust::device_vector<Neutron>& d_Neutrons, thrust::device_vector<Neutron>& d_addedNeutrons);
 
-	__host__ void DtoH(thrust::device_vector<Neutron>& d_Neutrons, thrust::device_vector<Neutron>& d_addedNeutrons) {
-		thrust::copy(d_Neutrons.begin(), d_Neutrons.end(), this->m_neutrons.begin());
-		thrust::copy(d_addedNeutrons.begin(), d_addedNeutrons.end(), this->m_addedNeutrons.begin());
-	}
+	__host__ void DtoH(thrust::device_vector<Neutron>& d_Neutrons, thrust::device_vector<Neutron>& d_addedNeutrons);
 	// should i DtoH with the nullified neutron removed? or what
 	__host__ void uniformSpherical(double radius, double maxEnergy = 2.0e+6);
+
+	__host__ void singleEnergySpherical(double raidus, double energy = 0.0253);
 
 	__host__ void MergeNeutrons();
 
@@ -185,7 +184,7 @@ struct NeutronThrustManager {
 	SpectrumType m_spectrumType;
 
 	// guess its kinda redundnat?
-	NeutronThrustManager(thrust::device_vector<Neutron> d_neutrons, thrust::device_vector<Neutron> d_addedNeutrons, unsigned long long seedNo, SpectrumType spectrumType) 
+	NeutronThrustManager(thrust::device_vector<Neutron>& d_neutrons, thrust::device_vector<Neutron>& d_addedNeutrons, unsigned long long seedNo, SpectrumType spectrumType) 
 		: d_neutrons(d_neutrons), d_addedNeutrons(d_addedNeutrons), m_seedNumber(seedNo), m_spectrumType(spectrumType)
 	{}
 

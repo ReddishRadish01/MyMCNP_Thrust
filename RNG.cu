@@ -31,11 +31,21 @@ __host__ __device__ double GnuAMCM::uniform(double lowerLimit, double upperLimit
 	m_xi = xi_nplus1;
 	// linear remapping: random value A between value a,b -> remap to (X,Y): value B = X + (A - a) * (Y - X) / (b - a)
 	return lowerLimit + (xi_nplus1) * (upperLimit - lowerLimit) / ((1ULL << 48) - 1);
+	// 
+	//return lowerLimit + (xi_nplus1 / (1ULL << 48)) * (upperLimit - lowerLimit); 
+	//	<- this above one doesn't work. xi_nplus1 / 1ULL<<48 is integer division, it always become 0, hence it always return lowerLimit.
 	// I'm not sure about returning the upperLimit - most RNG uniform distribution returns [Lo, Up): 
 	// if the denominator is 2^48, it will return [lowerLimit, upperLimit). but if you do 2^48-1, you will get [lowerLimit, upperLimit].
 	// however, utilizing integer division methods will be much faster - it's a bitshift operation.
 	// if you want to maximize the speed, use:
 	//return lowerlimit + ( xi_nplus1 / (1ULL<<48) ) * (upperLimit - lowerLimit);
+}
+
+__host__ __device__ double GnuAMCM::uniform_open(double lowerLimit, double upperLimit) {
+	unsigned long long xi_nplus1 = (this->m_xi * 25214903917ULL + 11ULL) % (1ULL << 48);
+	this->m_xi = xi_nplus1;
+	double u = ((double)xi_nplus1 + 0.5) * (1.0 / (double)(1ULL << 48));
+	return lowerLimit + (upperLimit - lowerLimit) * u;
 }
 
 __host__ __device__ int GnuAMCM::int_dist(int lower, int upper) {

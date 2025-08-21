@@ -20,106 +20,179 @@
 
 
 
-// returns cm^{-1}, 10^{-24} is compensated.
+
+/*	Methodology for calculating MacroXS
+*	1. calculate the atomic mass of the mixture with the formula: A = \sum_i (N_i / N) A_i
+*	2. macroscopic cross is acquired with: \Sigma = \frac{\rho N_0}{A} \sum_i( \frac{N_i}{N} \sigma_i )
+
+
+*/
+
+/*
 __host__ __device__ double BareSphere::getTotalMacroXS(Neutron incidentNeutron, RawCrossSection* U235XS,
 	RawCrossSection* U238XS, RawCrossSection* O16XS, RawCrossSection* ModXS) {
 	// Some basic theories here: \rho_{UO2} = \frac{Z M_{UO2}}{N_A a^3} <- calculating the atom density from lattice perspective, Z = 4(4 UO2 per unit cell)
 	double mass_UO2 = U235XS->mass * (m_enrichment / 100.0) + U238XS->mass * (1 - m_enrichment / 100.0) + 2 * O16XS->mass;
-	double rho_UO2 = (4 * mass_UO2) / (6.02214076e+23 * pow(5.47e-10, 3) ); 
+	double rho_UO2 = (4 * mass_UO2) / (6.02214076e+23 * pow(5.47e-10, 3));
 	double atomRho_UO2 = 4 / (pow(5.47e-10, 3) * pow(10, 6));		// #/cm^3 
 	double atomRho_Mod = ModXS->rho * Constants::N_A / ModXS->mass;
 
-	double volumeFracUO2 = m_fissionableComposition / 100 / rho_UO2;
-	double volumeFracC = m_moderatorComposition / 100 / ModXS->rho;
+	double totalVolume = this->m_fissionableComposition / rho_UO2 + this->m_moderatorComposition / ModXS->rho;
+	double volumeFrac_UO2 = (this->m_fissionableComposition / rho_UO2) / totalVolume;
+	double volumeFrac_Mod = (this->m_moderatorComposition / ModXS->rho) / totalVolume;
 
 	// homogeneous - no geometrical dependency.
-	return pow(10, -24) * (atomRho_UO2 * volumeFracUO2 * (U235XS->getTotalMicroXSByEnergy(incidentNeutron.m_energy)* m_enrichment / 100 + U238XS->getTotalMicroXSByEnergy(incidentNeutron.m_energy) * (1 - (m_enrichment / 100)) + 2 * O16XS->getTotalMicroXSByEnergy(incidentNeutron.m_energy))
-		+ atomRho_Mod * volumeFracC * ModXS->getTotalMicroXSByEnergy(incidentNeutron.m_energy) );
-	
+	return pow(10, -24) * (atomRho_UO2 * volumeFrac_UO2 * (U235XS->getTotalMicroXSByEnergy(incidentNeutron.m_energy) * m_enrichment / 100 + U238XS->getTotalMicroXSByEnergy(incidentNeutron.m_energy) * (1 - (m_enrichment / 100)) + 2 * O16XS->getTotalMicroXSByEnergy(incidentNeutron.m_energy))
+		+ atomRho_Mod * volumeFrac_Mod * ModXS->getTotalMicroXSByEnergy(incidentNeutron.m_energy));
+
 }
+*/
+
+
+// returns cm^{-1}, 10^{-24} is removed.
+__host__ __device__ double BareSphere::getTotalMacroXS(Neutron incidentNeutron, RawCrossSection* U235XS,
+	RawCrossSection* U238XS, RawCrossSection* O16XS, RawCrossSection* ModXS) {
+	// Some basic theories here: \rho_{UO2} = \frac{Z M_{UO2}}{N_A a^3} <- calculating the atom density from lattice perspective, Z = 4(4 UO2 per unit cell)
+	double mass_UO2 = U235XS->mass * (m_enrichment / 100.0) + U238XS->mass * (1 - m_enrichment / 100.0) + 2 * O16XS->mass;
+	//double rho_UO2 = (4 * mass_UO2 / Constants::N_A) / ( pow(5.47e-10, 3) * pow(10, 6) ) ;		// g/cm^3
+	double rho_UO2 = Constants::Rho_UO2;
+
+	//double atomRho_UO2 = 4 / (pow(5.47e-10, 3) * pow(10, 6));					// #/cm^3 
+	double atomRho_UO2 = rho_UO2 * Constants::N_A / mass_UO2;
+
+	// This case, atomRho_Mod uses graphite's Density: 2.0 g/cm^3
+	double atomRho_Mod = ModXS->rho * Constants::N_A / ModXS->mass;				// #/cm^3
+
+	double totalVolume = this->m_fissionableComposition / rho_UO2 + this->m_moderatorComposition / ModXS->rho;
+	double volumeFrac_UO2 = (this->m_fissionableComposition / rho_UO2) / totalVolume;
+	double volumeFrac_Mod = (this->m_moderatorComposition / ModXS->rho) / totalVolume;
+
+	double UO2TmicroXS = this->m_enrichment / 100 * U235XS->getTotalMicroXSByEnergy(incidentNeutron.m_energy)
+		+ (1 - this->m_enrichment / 100) * U238XS->getTotalMicroXSByEnergy(incidentNeutron.m_energy) + 2 * ModXS->getTotalMicroXSByEnergy(incidentNeutron.m_energy);		// barns (i.e. 10^{-24} cm{2})
+
+	// homogeneous - no geometrical dependency.
+	return pow(10, -24) * ( volumeFrac_UO2 * atomRho_UO2 * UO2TmicroXS + volumeFrac_Mod * atomRho_Mod * ModXS->getTotalMicroXSByEnergy(incidentNeutron.m_energy) );
+}
+
 
 // returns cm^{-1}, 10^{-24} is compensated.
 __host__ __device__ double BareSphere::getFMacroXS(Neutron incidentNeutron, RawCrossSection* U235XS, RawCrossSection* U238XS, RawCrossSection* O16XS, RawCrossSection* ModXS) {
 	double mass_UO2 = U235XS->mass * (m_enrichment / 100.0) + U238XS->mass * (1 - m_enrichment / 100.0) + 2 * O16XS->mass;
-	double rho_UO2 = (4 * mass_UO2) / (6.02214076e+23 * pow(5.47e-10, 3));
-	double atomRho_UO2 = 4 / pow(5.47e-10, 3) * pow(10, 6);		// #/cm^3 
-	double atomRho_Mod = ModXS->rho * Constants::N_A / ModXS->mass;
+	double rho_UO2 = (4 * mass_UO2) / (Constants::N_A * pow(5.47e-10, 3) * pow(10, 6) );
 
-	double volumeFracUO2 = m_fissionableComposition / 100 / rho_UO2;
-	double volumeFracC = m_moderatorComposition / 100 / ModXS->rho;
+	double atomRho_UO2 = 4 / (pow(5.47e-10, 3) * pow(10, 6));					// #/cm^3 
+	// This case, atomRho_Mod uses graphite's Density: 2.0 g/cm^3
+	double atomRho_Mod = ModXS->rho * Constants::N_A / ModXS->mass;				// #/cm^3
 
-	return pow(10, -24) * (atomRho_UO2 * volumeFracUO2 * (U235XS->getFMicroXSByEnergy(incidentNeutron.m_energy) * m_enrichment / 100 + U238XS->getFMicroXSByEnergy(incidentNeutron.m_energy) * (1 - (m_enrichment / 100)) + 2 * O16XS->getFMicroXSByEnergy(incidentNeutron.m_energy))
-		+ atomRho_Mod * volumeFracC * ModXS->getFMicroXSByEnergy(incidentNeutron.m_energy));
+	double totalVolume = this->m_fissionableComposition / rho_UO2 + this->m_moderatorComposition / ModXS->rho;
+	double volumeFrac_UO2 = (this->m_fissionableComposition / rho_UO2) / totalVolume;
+	double volumeFrac_Mod = (this->m_moderatorComposition / ModXS->rho) / totalVolume;
+
+	double UO2FmicroXS = this->m_enrichment / 100 * U235XS->getFMicroXSByEnergy(incidentNeutron.m_energy)
+		+ (1 - this->m_enrichment / 100) * U238XS->getFMicroXSByEnergy(incidentNeutron.m_energy) + 2 * ModXS->getTotalMicroXSByEnergy(incidentNeutron.m_energy);		// barns (i.e. 10^{-24} cm{2})
+
+	// homogeneous - no geometrical dependency.
+	return pow(10, -24) * (volumeFrac_UO2 * atomRho_UO2 * UO2FmicroXS + volumeFrac_Mod * atomRho_Mod * ModXS->getFMicroXSByEnergy(incidentNeutron.m_energy));
 }
 
 // returns cm^{-1}, 10^{-24} is compensated.
 __host__ __device__ double BareSphere::getGMacroXS(Neutron incidentNeutron, RawCrossSection* U235XS, RawCrossSection* U238XS, RawCrossSection* O16XS, RawCrossSection* ModXS) {
 	double mass_UO2 = U235XS->mass * (m_enrichment / 100.0) + U238XS->mass * (1 - m_enrichment / 100.0) + 2 * O16XS->mass;
-	double rho_UO2 = (4 * mass_UO2) / (6.02214076e+23 * pow(5.47e-10, 3));
-	double atomRho_UO2 = 4 / pow(5.47e-10, 3) * pow(10, 6);		// #/cm^3 
-	double atomRho_Mod = ModXS->rho * Constants::N_A / ModXS->mass;
+	double rho_UO2 = (4 * mass_UO2) / (Constants::N_A * pow(5.47e-10, 3) * pow(10, 6));
 
-	double volumeFracUO2 = m_fissionableComposition / 100 / rho_UO2;
-	double volumeFracC = m_moderatorComposition / 100 / ModXS->rho;
+	double atomRho_UO2 = 4 / (pow(5.47e-10, 3) * pow(10, 6));					// #/cm^3 
+	// This case, atomRho_Mod uses graphite's Density: 2.0 g/cm^3
+	double atomRho_Mod = ModXS->rho * Constants::N_A / ModXS->mass;				// #/cm^3
 
-	return pow(10, -24) * (atomRho_UO2 * volumeFracUO2 * (U235XS->getGMicroXSByEnergy(incidentNeutron.m_energy) * m_enrichment / 100 + U238XS->getGMicroXSByEnergy(incidentNeutron.m_energy) * (1 - (m_enrichment / 100)) + 2 * O16XS->getGMicroXSByEnergy(incidentNeutron.m_energy))
-		+ atomRho_Mod * volumeFracC * ModXS->getGMicroXSByEnergy(incidentNeutron.m_energy));
+	double totalVolume = this->m_fissionableComposition / rho_UO2 + this->m_moderatorComposition / ModXS->rho;
+	double volumeFrac_UO2 = (this->m_fissionableComposition / rho_UO2) / totalVolume;
+	double volumeFrac_Mod = (this->m_moderatorComposition / ModXS->rho) / totalVolume;
+
+	double UO2GmicroXS = this->m_enrichment / 100 * U235XS->getGMicroXSByEnergy(incidentNeutron.m_energy)
+		+ (1 - this->m_enrichment / 100) * U238XS->getGMicroXSByEnergy(incidentNeutron.m_energy) + 2 * ModXS->getTotalMicroXSByEnergy(incidentNeutron.m_energy);		// barns (i.e. 10^{-24} cm{2})
+
+	// homogeneous - no geometrical dependency.
+	return pow(10, -24) * (volumeFrac_UO2 * atomRho_UO2 * UO2GmicroXS + volumeFrac_Mod * atomRho_Mod * ModXS->getGMicroXSByEnergy(incidentNeutron.m_energy));
 }
 
 // returns cm^{-1}, 10^{-24} is compensated.
 __host__ __device__ double BareSphere::getElMacroXS(Neutron incidentNeutron, RawCrossSection* U235XS, RawCrossSection* U238XS, RawCrossSection* O16XS, RawCrossSection* ModXS) {
 	double mass_UO2 = U235XS->mass * (m_enrichment / 100.0) + U238XS->mass * (1 - m_enrichment / 100.0) + 2 * O16XS->mass;
-	double rho_UO2 = (4 * mass_UO2) / (6.02214076e+23 * pow(5.47e-10, 3));
-	double atomRho_UO2 = 4 / pow(5.47e-10, 3) * pow(10, 6);		// #/cm^3 
-	double atomRho_Mod = ModXS->rho * Constants::N_A / ModXS->mass;
+	double rho_UO2 = (4 * mass_UO2) / (Constants::N_A * pow(5.47e-10, 3) * pow(10, 6));
 
-	double volumeFracUO2 = m_fissionableComposition / 100 / rho_UO2;
-	double volumeFracC = m_moderatorComposition / 100 / ModXS->rho;
+	double atomRho_UO2 = 4 / (pow(5.47e-10, 3) * pow(10, 6));					// #/cm^3 
+	// This case, atomRho_Mod uses graphite's Density: 2.0 g/cm^3
+	double atomRho_Mod = ModXS->rho * Constants::N_A / ModXS->mass;				// #/cm^3
 
-	return pow(10, -24) * (atomRho_UO2 * volumeFracUO2 * (U235XS->getElMicroXSByEnergy(incidentNeutron.m_energy) * m_enrichment / 100 + U238XS->getElMicroXSByEnergy(incidentNeutron.m_energy) * (1 - (m_enrichment / 100)) + 2 * O16XS->getElMicroXSByEnergy(incidentNeutron.m_energy))
-		+ atomRho_Mod * volumeFracC * ModXS->getElMicroXSByEnergy(incidentNeutron.m_energy));
+	double totalVolume = this->m_fissionableComposition / rho_UO2 + this->m_moderatorComposition / ModXS->rho;
+	double volumeFrac_UO2 = (this->m_fissionableComposition / rho_UO2) / totalVolume;
+	double volumeFrac_Mod = (this->m_moderatorComposition / ModXS->rho) / totalVolume;
+
+	double UO2ElmicroXS = this->m_enrichment / 100 * U235XS->getElMicroXSByEnergy(incidentNeutron.m_energy)
+		+ (1 - this->m_enrichment / 100) * U238XS->getElMicroXSByEnergy(incidentNeutron.m_energy) + 2 * ModXS->getTotalMicroXSByEnergy(incidentNeutron.m_energy);		// barns (i.e. 10^{-24} cm{2})
+
+	// homogeneous - no geometrical dependency.
+	return pow(10, -24) * (volumeFrac_UO2 * atomRho_UO2 * UO2ElmicroXS + volumeFrac_Mod * atomRho_Mod * ModXS->getElMicroXSByEnergy(incidentNeutron.m_energy));
 }
 
 // returns cm^{-1}, 10^{-24} is compensated.
 __host__ __device__ double BareSphere::getInlMacroXS(Neutron incidentNeutron, RawCrossSection* U235XS, RawCrossSection* U238XS, RawCrossSection* O16XS, RawCrossSection* ModXS) {
 	double mass_UO2 = U235XS->mass * (m_enrichment / 100.0) + U238XS->mass * (1 - m_enrichment / 100.0) + 2 * O16XS->mass;
-	double rho_UO2 = (4 * mass_UO2) / (6.02214076e+23 * pow(5.47e-10, 3));
-	double atomRho_UO2 = 4 / pow(5.47e-10, 3) * pow(10, 6);		// #/cm^3 
-	double atomRho_Mod = ModXS->rho * Constants::N_A / ModXS->mass;
+	double rho_UO2 = (4 * mass_UO2) / (Constants::N_A * pow(5.47e-10, 3) * pow(10, 6));
 
-	double volumeFracUO2 = m_fissionableComposition / 100 / rho_UO2;
-	double volumeFracC = m_moderatorComposition / 100 / ModXS->rho;
+	double atomRho_UO2 = 4 / (pow(5.47e-10, 3) * pow(10, 6));					// #/cm^3 
+	// This case, atomRho_Mod uses graphite's Density: 2.0 g/cm^3
+	double atomRho_Mod = ModXS->rho * Constants::N_A / ModXS->mass;				// #/cm^3
 
-	return pow(10, -24) * (atomRho_UO2 * volumeFracUO2 * (U235XS->getInlMicroXSByEnergy(incidentNeutron.m_energy) * m_enrichment / 100 + U238XS->getInlMicroXSByEnergy(incidentNeutron.m_energy) * (1 - (m_enrichment / 100)) + 2 * O16XS->getInlMicroXSByEnergy(incidentNeutron.m_energy))
-		+ atomRho_Mod * volumeFracC * ModXS->getInlMicroXSByEnergy(incidentNeutron.m_energy));
+	double totalVolume = this->m_fissionableComposition / rho_UO2 + this->m_moderatorComposition / ModXS->rho;
+	double volumeFrac_UO2 = (this->m_fissionableComposition / rho_UO2) / totalVolume;
+	double volumeFrac_Mod = (this->m_moderatorComposition / ModXS->rho) / totalVolume;
+
+	double UO2InlmicroXS = this->m_enrichment / 100 * U235XS->getInlMicroXSByEnergy(incidentNeutron.m_energy)
+		+ (1 - this->m_enrichment / 100) * U238XS->getInlMicroXSByEnergy(incidentNeutron.m_energy) + 2 * ModXS->getTotalMicroXSByEnergy(incidentNeutron.m_energy);		// barns (i.e. 10^{-24} cm{2})
+
+	// homogeneous - no geometrical dependency.
+	return pow(10, -24) * (volumeFrac_UO2 * atomRho_UO2 * UO2InlmicroXS + volumeFrac_Mod * atomRho_Mod * ModXS->getInlMicroXSByEnergy(incidentNeutron.m_energy));
 }
 
 // returns cm^{-1}, 10^{-24} is compensated.
 __host__ __device__ double BareSphere::get2nMacroXS(Neutron incidentNeutron, RawCrossSection* U235XS, RawCrossSection* U238XS, RawCrossSection* O16XS, RawCrossSection* ModXS) {
 	double mass_UO2 = U235XS->mass * (m_enrichment / 100.0) + U238XS->mass * (1 - m_enrichment / 100.0) + 2 * O16XS->mass;
-	double rho_UO2 = (4 * mass_UO2) / (6.02214076e+23 * pow(5.47e-10, 3));
-	double atomRho_UO2 = 4 / pow(5.47e-10, 3) * pow(10, 6);		// #/cm^3 
-	double atomRho_Mod = ModXS->rho * Constants::N_A / ModXS->mass;
+	double rho_UO2 = (4 * mass_UO2) / (Constants::N_A * pow(5.47e-10, 3) * pow(10, 6));
 
-	double volumeFracUO2 = m_fissionableComposition / 100 / rho_UO2;
-	double volumeFracC = m_moderatorComposition / 100 / ModXS->rho;
+	double atomRho_UO2 = 4 / (pow(5.47e-10, 3) * pow(10, 6));					// #/cm^3 
+	// This case, atomRho_Mod uses graphite's Density: 2.0 g/cm^3
+	double atomRho_Mod = ModXS->rho * Constants::N_A / ModXS->mass;				// #/cm^3
 
-	return pow(10, -24) * (atomRho_UO2 * volumeFracUO2 * (U235XS->get2nMicroXSByEnergy(incidentNeutron.m_energy) * m_enrichment / 100 + U238XS->get2nMicroXSByEnergy(incidentNeutron.m_energy) * (1 - (m_enrichment / 100)) + 2 * O16XS->get2nMicroXSByEnergy(incidentNeutron.m_energy))
-		+ atomRho_Mod * volumeFracC * ModXS->get2nMicroXSByEnergy(incidentNeutron.m_energy));
+	double totalVolume = this->m_fissionableComposition / rho_UO2 + this->m_moderatorComposition / ModXS->rho;
+	double volumeFrac_UO2 = (this->m_fissionableComposition / rho_UO2) / totalVolume;
+	double volumeFrac_Mod = (this->m_moderatorComposition / ModXS->rho) / totalVolume;
+
+	double UO22nmicroXS = this->m_enrichment / 100 * U235XS->get2nMicroXSByEnergy(incidentNeutron.m_energy)
+		+ (1 - this->m_enrichment / 100) * U238XS->get2nMicroXSByEnergy(incidentNeutron.m_energy) + 2 * ModXS->getTotalMicroXSByEnergy(incidentNeutron.m_energy);		// barns (i.e. 10^{-24} cm{2})
+
+	// homogeneous - no geometrical dependency.
+	return pow(10, -24) * (volumeFrac_UO2 * atomRho_UO2 * UO22nmicroXS + volumeFrac_Mod * atomRho_Mod * ModXS->get2nMicroXSByEnergy(incidentNeutron.m_energy));
 }
 
 // returns cm^{-1}, 10^{-24} is compensated.
 __host__ __device__ double BareSphere::get3nMacroXS(Neutron incidentNeutron, RawCrossSection* U235XS, RawCrossSection* U238XS, RawCrossSection* O16XS, RawCrossSection* ModXS) {
 	double mass_UO2 = U235XS->mass * (m_enrichment / 100.0) + U238XS->mass * (1 - m_enrichment / 100.0) + 2 * O16XS->mass;
-	double rho_UO2 = (4 * mass_UO2) / (6.02214076e+23 * pow(5.47e-10, 3));
-	double atomRho_UO2 = 4 / pow(5.47e-10, 3) * pow(10, 6);		// #/cm^3 
-	double atomRho_Mod = ModXS->rho * Constants::N_A / ModXS->mass;
+	double rho_UO2 = (4 * mass_UO2) / (Constants::N_A * pow(5.47e-10, 3) * pow(10, 6));
 
-	double volumeFracUO2 = m_fissionableComposition / 100 / rho_UO2;
-	double volumeFracC = m_moderatorComposition / 100 / ModXS->rho;
+	double atomRho_UO2 = 4 / (pow(5.47e-10, 3) * pow(10, 6));					// #/cm^3 
+	// This case, atomRho_Mod uses graphite's Density: 2.0 g/cm^3
+	double atomRho_Mod = ModXS->rho * Constants::N_A / ModXS->mass;				// #/cm^3
 
-	return pow(10, -24) * (atomRho_UO2 * volumeFracUO2 * (U235XS->get3nMicroXSByEnergy(incidentNeutron.m_energy) * m_enrichment / 100 + U238XS->get3nMicroXSByEnergy(incidentNeutron.m_energy) * (1 - (m_enrichment / 100)) + 2 * O16XS->get3nMicroXSByEnergy(incidentNeutron.m_energy))
-		+ atomRho_Mod * volumeFracC * ModXS->get3nMicroXSByEnergy(incidentNeutron.m_energy));
+	double totalVolume = this->m_fissionableComposition / rho_UO2 + this->m_moderatorComposition / ModXS->rho;
+	double volumeFrac_UO2 = (this->m_fissionableComposition / rho_UO2) / totalVolume;
+	double volumeFrac_Mod = (this->m_moderatorComposition / ModXS->rho) / totalVolume;
+
+	double UO23nmicroXS = this->m_enrichment / 100 * U235XS->get3nMicroXSByEnergy(incidentNeutron.m_energy)
+		+ (1 - this->m_enrichment / 100) * U238XS->get3nMicroXSByEnergy(incidentNeutron.m_energy) + 2 * ModXS->getTotalMicroXSByEnergy(incidentNeutron.m_energy);		// barns (i.e. 10^{-24} cm{2})
+
+	// homogeneous - no geometrical dependency.
+	return pow(10, -24) * (volumeFrac_UO2 * atomRho_UO2 * UO23nmicroXS + volumeFrac_Mod * atomRho_Mod * ModXS->get3nMicroXSByEnergy(incidentNeutron.m_energy));
 }
 
 __host__ __device__ double BareSphere::getUO2XSbyEnergy(RawCrossSection* U235XS_ptr, RawCrossSection* U238XS_ptr, RawCrossSection* O16XS_ptr, double* enrichment, double incidentEnergy) {
