@@ -43,10 +43,10 @@ struct GnuAMCM {
 	__host__ __device__ double uniform_open(double lowerLimit, double upperLimit); 
 	__host__ __device__ int int_dist(int lower, int upper);
 
-	__host__ __device__ double GnuAMCM::MaxwellDistSample(double a);
-	__host__ __device__ double GnuAMCM::WattDistSample(double a = 1, double b = 2);
-	__host__ __device__ int GnuAMCM::fissionNeutronNumber(FissionableElementType fissionElement);
-	__host__ __device__ double GnuAMCM::GaussianPDF(double inputX, double mean, double stdev);
-	__host__ __device__ double GnuAMCM::GaussianCDF(double inputX);
+	__host__ __device__ double MaxwellDistSample(double a);
+	__host__ __device__ double WattDistSample(double a = 1, double b = 2);
+	__host__ __device__ int fissionNeutronNumber(FissionableElementType fissionElement);
+	__host__ __device__ double GaussianPDF(double inputX, double mean, double stdev);
+	__host__ __device__ double GaussianCDF(double inputX);
 
 };

@@ -827,7 +827,7 @@ int main() {
 		sum += h_thrustReturn[i];
 	}
 	std::cout << d_thrustReturn.size() << "\n";
-	std::cout << "\nAverage distance traveled: " << sum / numNeutrons<< "\n";
+	std::cout << "\nAverage distance traveled: " << sum / numNeutrons << "\n";
 
 	/*
 	NeutronThrustManager Manager(d_NeutronVector, d_addedNeutronVector, seedNo, SpectrumType::default);
