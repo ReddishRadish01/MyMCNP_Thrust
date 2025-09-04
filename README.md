@@ -35,7 +35,7 @@ $$ \xi_{n+1} = \left\(5deece66d_{(16)} \times \xi_n + b_{(16)} \right\)\ mod\ 2^
 - Calculate interaction type: `BareSphere::getInteractionType`
 - Calculate the next reaction distance: `BareSphere::getInteractionType` - based on the following Eq:
 
-$$ l = -\frac{\ln(\xi)}{\Sigma_t} \quad \text{where} \quad \xi \in [0,1) $$
+$$ l = -\frac{\ln(\xi)}{\Sigma_t} \quad \text{where} \quad \xi \in (0,1] $$
 
 
 ### `MyMCNP_Thrust.cu`
