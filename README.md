@@ -7,7 +7,7 @@ I am still working on the code. At the moment, I managed to calculate 500,000 ne
 
 
 ## To compile and run the code:
-` $ nvcc -arch=sm_61(or higher) -rdc=true --extended-lambda XSParser.cu RNG.cu Neutron.cu FuelKernel.cu MyMCNP_Thrust.cu -o <output_file_name?> && ./<output_file_name> `  
+` $ nvcc -arch=sm_61(or higher) -rdc=true --extended-lambda XSParser.cu RNG.cu Neutron.cu FuelKernel.cu MyMCNP_Thrust.cu -o <output_file_name> && ./<output_file_name> `  
 
 
 ## Description of each files
