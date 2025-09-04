@@ -17,7 +17,7 @@ Utilized GNU's Additive Multiplicative Congrugential Method (AMCM) Pseudo-random
 $$ \xi_{n+1} = \left\(5deece66d_{(16)} \times \xi_n + b_{(16)} \right\)\ mod\ 2^{48} $$
 
 - This struct has functions that returns a real and integer RNG values within given range (both closed and open range) - `GnuAMCM::uniform`, `GnuAMCM::uniform_open`, `GnuAMCM::int_dist`.  
-- For the fission neutrons, the energy of each neutrons follow $\chi$(chi) spectrum, or the Watt spectrum. Function `GnuAMCM::WattDistSample` returns a energy corresponding to the distribution.  
+- For the fission neutrons, the energy of each neutrons follow $\chi$(chi) spectrum, or the Watt Distribution. Function `GnuAMCM::WattDistSample` returns a energy corresponding to the distribution.  
 
 ### `XSParser.cu` and `XSParser.cuh`
 - XSData contains text files of **KAERI ENDF/B-VIII.0** cross section for certain nuclides. This is loadable, in GPU, at the main code `MyMCNP_Thrust.cu`.
