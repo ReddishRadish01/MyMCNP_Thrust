@@ -34,7 +34,8 @@ $$ \xi_{n+1} = \left\(5deece66d_{(16)} \times \xi_n + b_{(16)} \right\)\ mod\ 2^
 - In this struct, we have code to calculate the Macroscopic Cross Section ($\Sigma$): `BareSphere::getTotalMacroXS`, `BareSphere::getFMacroXS`, $\cdots$
 - Calculate interaction type: `BareSphere::getInteractionType`
 - Calculate the next reaction distance: `BareSphere::getInteractionType` - based on the following Eq:
-$$ l = -\frac{\ln(\xi)}{\Sigma_t}\quad \text{where}\quad \xi = \[0,1) $$
+
+$$ l = -\frac{\ln(\xi)}{\Sigma_t} \quad \text{where} \quad \xi \in [0,1) $$
 
 
 ### `MyMCNP_Thrust.cu`
