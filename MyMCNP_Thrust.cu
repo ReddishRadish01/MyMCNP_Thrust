@@ -146,7 +146,7 @@ int main() {
 	std::cout << "Newly Compiled!!\n";
 
 	int numNeutrons = 500000;
-	unsigned long long seedNo = 2001;
+	unsigned long long seedNo = 2210923012871;
 
     /*
      *  ___      _   _   _                             ___ _  _  ___ 
@@ -638,6 +638,7 @@ int main() {
 // ---------------------------------------------------------------------------------------- //
 
 // ---- Memory copy from host to device completed! ---- //
+
 
 
 /*

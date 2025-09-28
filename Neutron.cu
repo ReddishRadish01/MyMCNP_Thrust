@@ -113,6 +113,20 @@ __device__ void Neutron::ElasticScattering(double targetMass, double* depositedE
 	vec3 scatteringVec = vec3::randomUnit(RNG.gen());
 	double mu = m_dirVec.dot(scatteringVec) / (m_dirVec.magnitude() * scatteringVec.magnitude());
 
+	/*
+	* 	m: projecile (usually 1), M: target
+	*	E: projectile energy, E' : projectile's after reaction energy 	
+	* 
+	*	For LAB frame:
+	*	E'/E = \frac{ (\cos\theta_l + \sqrt{A^2 - \sin^2\theta_L} )^2 }{ (A+1)^2 }
+	*  
+		For CENTER OF MASS frame:
+	*	E'/E = \frac{ M^2 + m^2 + 2mM\cos\theta_c }{ (m+M)^2 }
+
+		Note: This is on the COM frame: hence \theta_c. You need some conversion between LAB angle and COM amgle, with:
+		\tan\theta_L = \frac{\sin\theta_c}{\cos\theta_c + 1/A} 
+		or vice versa:
+	*/
 	double neutronEnergy = this->m_energy * (pow(targetMass, 2) + pow(Constants::M_Neutron, 2) + 2 * targetMass * Constants::M_Neutron * mu) / pow(Constants::M_Neutron + targetMass, 2);
 	double recoilEnergy = this->m_energy - neutronEnergy;
 	this->m_energy = neutronEnergy;

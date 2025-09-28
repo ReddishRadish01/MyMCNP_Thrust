@@ -38,7 +38,14 @@ struct GnuAMCM {
 	}
 	__host__ __device__ ~GnuAMCM() {}
 
-	__host__ __device__ unsigned long long gen();
+	__host__ __device__ inline unsigned long long gen() {		// returns value between 0 and 2^48-1
+		// You can use pow(2,48) but our main concern is SPEED!!! use bitshift to get 2^48:  shift value 1 of type ULL(unsigned long long) to the left 48 times: 1ULL<<48
+		//unsigned long long xi_nplus1 = (m_xi * 25214903917 + 11) % static_cast<unsigned long long>(pow(2, 48));
+		//unsigned long long xi_nplus1 = (m_xi * 25214903917ULL + 11ULL) % (1ULL << 48);
+		unsigned long long xi_nplus1 = (m_xi * 25214903917ULL + 11ULL) & (0xFFFFFFFFFFFFULL);	// explicit and
+		m_xi = xi_nplus1;
+		return xi_nplus1;
+	}
 	__host__ __device__ double uniform(double lowerLimit, double upperLimit);
 	__host__ __device__ double uniform_open(double lowerLimit, double upperLimit); 
 	__host__ __device__ int int_dist(int lower, int upper);

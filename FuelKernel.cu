@@ -71,7 +71,7 @@ __host__ __device__ double BareSphere::getTotalMacroXS(Neutron incidentNeutron, 
 		+ (1 - this->m_enrichment / 100) * U238XS->getTotalMicroXSByEnergy(incidentNeutron.m_energy) + 2 * ModXS->getTotalMicroXSByEnergy(incidentNeutron.m_energy);		// barns (i.e. 10^{-24} cm{2})
 
 	// homogeneous - no geometrical dependency.
-	return pow(10, -24) * ( volumeFrac_UO2 * atomRho_UO2 * UO2TmicroXS + volumeFrac_Mod * atomRho_Mod * ModXS->getTotalMicroXSByEnergy(incidentNeutron.m_energy) );
+	return pow(10, -24) * ( volumeFrac_UO2 * atomRho_UO2 * UO2TmicroXS + volumeFrac_Mod * atomRho_Mod * ModXS->getTotalMicroXSByEnergy(incidentNeutron.m_energy) ); 
 }
 
 

@@ -17,7 +17,7 @@ __host__ __device__ unsigned long long McnpAMCM::gen() {
 	return xi_nplus1;
 }
 
-
+/* moved to .cuh for inline
 __host__ __device__ unsigned long long GnuAMCM::gen() {		// returns value between 0 and 2^48-1
 	// You can use pow(2,48) but our main concern is SPEED!!! use bitshift to get 2^48:  shift value 1 of type ULL(unsigned long long) to the left 48 times: 1ULL<<48
 	//unsigned long long xi_nplus1 = (m_xi * 25214903917 + 11) % static_cast<unsigned long long>(pow(2, 48));
@@ -25,10 +25,13 @@ __host__ __device__ unsigned long long GnuAMCM::gen() {		// returns value betwee
 	m_xi = xi_nplus1;
 	return xi_nplus1;
 }
+*/
 
+// both end closed: [Lo, Up]
 __host__ __device__ double GnuAMCM::uniform(double lowerLimit, double upperLimit) {
-	unsigned long long xi_nplus1 = (m_xi * 25214903917ULL + 11ULL) % (1ULL << 48);
-	m_xi = xi_nplus1;
+	//unsigned long long xi_nplus1 = (m_xi * 25214903917ULL + 11ULL) % (1ULL << 48);
+	unsigned long long xi_nplus1 = this->gen();
+	//m_xi = xi_nplus1;
 	// linear remapping: random value A between value a,b -> remap to (X,Y): value B = X + (A - a) * (Y - X) / (b - a)
 	return lowerLimit + (xi_nplus1) * (upperLimit - lowerLimit) / ((1ULL << 48) - 1);
 	// 
@@ -41,18 +44,21 @@ __host__ __device__ double GnuAMCM::uniform(double lowerLimit, double upperLimit
 	//return lowerlimit + ( xi_nplus1 / (1ULL<<48) ) * (upperLimit - lowerLimit);
 }
 
+// both end open: (Lo, Up)
 __host__ __device__ double GnuAMCM::uniform_open(double lowerLimit, double upperLimit) {
-	unsigned long long xi_nplus1 = (this->m_xi * 25214903917ULL + 11ULL) % (1ULL << 48);
-	this->m_xi = xi_nplus1;
-	double u = ((double)xi_nplus1 + 0.5) * (1.0 / (double)(1ULL << 48));
+	//unsigned long long xi_nplus1 = (this->m_xi * 25214903917ULL + 11ULL) % (1ULL << 48);
+	//this->m_xi = xi_nplus1;
+	unsigned long long xi_nplus1 = this->gen();
+	double u = ((double)xi_nplus1 + 0.5) * (1.0 / (double)(0xFFFFFFFFFFFFull)); // 1ull<<48 = 2^{48}
 	return lowerLimit + (upperLimit - lowerLimit) * u;
 }
 
 __host__ __device__ int GnuAMCM::int_dist(int lower, int upper) {
-	unsigned long long xi_nplus1 = (m_xi * 2521490317ULL + 11ULL) % (1ULL << 48);
-	m_xi = xi_nplus1;
+	//unsigned long long xi_nplus1 = (m_xi * 2521490317ULL + 11ULL) % (1ULL << 48);
+	//m_xi = xi_nplus1;
+	unsigned long long xi_nplus1 = this->gen();
 	const unsigned long long range = static_cast<unsigned long long>(upper) - static_cast<unsigned long long>(lower) + 1ULL;
-	return static_cast<int>( lower + (xi_nplus1 * range) / (1ULL << 48) );
+	return static_cast<int>( lower + (xi_nplus1 * range) / (0xFFFFFFFFFFFF) );
 	// note we devided the xi_nplus1 with 2^48: we dont want to include the upper limit offseted by +1.
 	// by rare chance (1/2^48), it will return upper+1: which can be detrimental, since this value will be passed to InteractionType enum - we want 1 to 7, not 8.
 }
@@ -86,16 +92,18 @@ __host__ __device__ double GnuAMCM::WattDistSample(double a, double b) {
 
 __host__ __device__ int GnuAMCM::fissionNeutronNumber(FissionableElementType fissionElement) {
 	if (fissionElement == FissionableElementType::U235) {
-		return this->int_dist(2, 3); }	// \nu = 2.4355
+		return int(2.4355 + this->uniform(0.0, 1.0));	// this will get truncated to 2 or 3
+	}	// \nu = 2.4355
 	else if (fissionElement == FissionableElementType::U238) { 
-		return this->int_dist(2, 4); }	// \nu = 2.819
+		return this->int_dist(2, 4); 
+	}	// \nu = 2.819
 	else { 
 		return 0; 
 	}
 }
 
 __host__ __device__ double GnuAMCM::GaussianPDF(double inputX, double mean, double stdev) {
-	return 1 / (2 * Constants::PI);
+	return 1 / (stdev * sqrt(2 * Constants::PI) * pow(Constants::EulerNum, -0.5 * pow(((inputX - mean) / stdev), 2)) );
 }
 
 __host__ __device__ double GnuAMCM::GaussianCDF(double inputX) {

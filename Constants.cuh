@@ -19,6 +19,7 @@ namespace Constants {
 
 	constexpr double PI		= 3.141592653589793238462643383279502884197;	//40 fucking digits man it's accurate AF
 	constexpr double ElectronC = 1.60217633e-19;
+	constexpr double EulerNum = 2.718281828459045235360287471352;
 	
 
 
