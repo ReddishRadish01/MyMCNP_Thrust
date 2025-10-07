@@ -210,6 +210,16 @@ struct RawCrossSection {
 		std::memcpy(n3n_XS, eXS_n3n.v_crossSection.data(), n3n_size * sizeof(double));
 	}
 
+	~RawCrossSection() {
+		delete[] ntot_energy, ntot_XS;
+		delete[] nf_energy, nf_XS;
+		delete[] nel_energy, nel_XS;
+		delete[] ng_energy, ng_XS;
+		delete[] ninl_energy, ninl_XS;
+		delete[] n2n_energy, n2n_XS;
+		delete[] n3n_energy, n3n_XS;
+	}
+
 	void setDensity(double density) { rho = density; }
 
 
@@ -223,6 +233,17 @@ struct RawCrossSection {
 
 
 	__host__ __device__ InteractionType getInteractionModeByEnergy(double incidentEnergy, unsigned long long SeedNo);
+
+	
+	__host__ void tmpObjectNullifier() {
+		this->ntot_energy = nullptr; this->ntot_XS = nullptr;
+		this->nf_energy = nullptr; this->nf_XS = nullptr;
+		this->ng_energy = nullptr; this->ng_XS = nullptr;
+		this->nel_energy = nullptr; this->nel_XS = nullptr;
+		this->ninl_energy = nullptr; this->ninl_XS = nullptr;
+		this->n2n_energy = nullptr; this->n2n_XS = nullptr;
+		this->n3n_energy = nullptr; this->n3n_XS = nullptr;
+	}
 };
 
 

@@ -108,6 +108,15 @@ struct NeutronDistribution {
 		//}
 	}
 
+	__host__ ~NeutronDistribution() {
+		// note this delete[] operator doesn't care whether the target it is deleting is host-side or device-side.
+		// in tmp objects, without nullptr'ing it's arrays, it will nuke that device pointer arrays - undefined behavior. 
+		// currently this is not important - since we are not initializing the neutron multiple times (it stays initialized along the whole program)
+		// but if we have to reinitialize multiple times, 
+		delete[] m_initialNeutron;
+		delete[] m_addedNeutron;
+	}
+
 	__host__ void uniformSpherical(double radius, double maxEnergy = 2e+6);
 
 	__host__ void singleEnergySpherical(double radius, double energy = 0.0253);

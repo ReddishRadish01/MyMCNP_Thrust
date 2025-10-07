@@ -907,6 +907,20 @@ int main() {
  * |___/|___/_/ \_\____|____\___/ \___/_/ \_\_| |___\___/|_|\_|
  *
  */
+	// Note this tmp deallocation is necessary when you need to allocate Neutrons / RawCrossXS multiple times in a single program:
+	// These tmp objects contain device address in their array members - 
+	// If you defined a destructor in those structs, it will try to DEALLOCATE THE DEVICE POINTER - Undefined behavior.
+
+	tmp_Neutrons.m_initialNeutron = nullptr;
+	tmp_Neutrons.m_addedNeutron = nullptr;
+
+
+	tmp_U235.tmpObjectNullifier();
+	tmp_U238.tmpObjectNullifier();
+	tmp_H1.tmpObjectNullifier();
+	tmp_C12.tmpObjectNullifier();
+	tmp_O16.tmpObjectNullifier();
+
 
 	delete[] h_value;
 	delete[] h_return;

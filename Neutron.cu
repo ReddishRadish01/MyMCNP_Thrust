@@ -1,13 +1,6 @@
 #pragma once
 
-#include "cuda.h"
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-#include <iostream>
-#include <iomanip>
-#include <ctime>
-#include <math.h>
-#include <stdlib.h>
+
 #include <fstream>
 #include <chrono>
 
@@ -182,9 +175,9 @@ __device__ void RadiativeCapture(NeutronThrustDevice* Neutrons, FissionableEleme
 
 
 __device__ void Neutron::UpdateWithLength(double length) {
-	m_pos.x += length * m_dirVec.x;
-	m_pos.y += length * m_dirVec.y;
-	m_pos.z += length * m_dirVec.z;
+	this->m_pos.x += length * this->m_dirVec.x;
+	this->m_pos.y += length * this->m_dirVec.y;
+	this->m_pos.z += length * this->m_dirVec.z;
 }
 
 __device__ bool Neutron::OutofBounds(double distanceLimit) const {	// maybe this need to be in the FuelKernel.cuh
